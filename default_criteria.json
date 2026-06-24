@@ -1,0 +1,173 @@
+[
+  {
+    "id": "vendor_name_present",
+    "locked": true,
+    "category": "1. Documentation identity",
+    "review_question": "Does the ACR clearly identify the company/vendor name?",
+    "why_this_matters": "Without a vendor name, the document is not traceable enough for procurement, renewal, or vendor follow-up.",
+    "what_to_look_for": "Company, vendor, publisher, or organization name on the cover/title area or report metadata.",
+    "inventory_field": "Note"
+  },
+  {
+    "id": "product_name_present",
+    "locked": true,
+    "category": "1. Documentation identity",
+    "review_question": "Does the ACR clearly identify the product, platform, or module name?",
+    "why_this_matters": "The report must identify what product, platform, module, or service the vendor evaluated.",
+    "what_to_look_for": "Product name, platform name, module, web app, mobile app, hosted service, or interface covered by the report.",
+    "inventory_field": "Note"
+  },
+  {
+    "id": "product_version_present",
+    "locked": true,
+    "category": "1. Documentation identity",
+    "review_question": "Does the ACR include product version, build, release, or equivalent version information?",
+    "why_this_matters": "A report tied to an unknown or outdated version may not describe the product currently available to library users.",
+    "what_to_look_for": "Version number, build number, release version, product edition, platform version, or a clear statement that the product is continuously updated/SaaS.",
+    "inventory_field": "Note"
+  },
+  {
+    "id": "report_date_present",
+    "locked": true,
+    "category": "1. Documentation identity",
+    "review_question": "Does the ACR include a report date?",
+    "why_this_matters": "The report date is needed to determine whether the ACR is current or stale.",
+    "what_to_look_for": "Report date, publication date, evaluation date, last updated date, month/year, or specific date.",
+    "inventory_field": "Note"
+  },
+  {
+    "id": "wcag_a_aa_coverage",
+    "locked": true,
+    "category": "2. Standards and coverage",
+    "review_question": "Does the ACR explicitly cover WCAG 2.1 Level A and Level AA?",
+    "why_this_matters": "For UC Irvine Libraries ADA Title II web/mobile review, the key documentation question is whether WCAG Level A and AA coverage is clearly addressed.",
+    "what_to_look_for": "Standards/guidelines section, table headings, or ACR metadata showing WCAG 2.1 Level A and Level AA. WCAG 2.2 A/AA is also useful if explicitly stated.",
+    "inventory_field": "WCAG Level"
+  },
+  {
+    "id": "vpat_version_edition",
+    "locked": true,
+    "category": "2. Standards and coverage",
+    "review_question": "What VPAT version or edition is used?",
+    "why_this_matters": "The VPAT version/edition helps staff understand whether the vendor used a recognizable reporting template and what standards are included.",
+    "what_to_look_for": "VPAT 2.5Rev WCAG, VPAT 2.5Rev INT, VPAT 2.4, VPAT 508, VPAT WCAG, EN 301 549, or similar template/version language.",
+    "inventory_field": "VPAT Version"
+  },
+  {
+    "id": "conformance_terms_clear",
+    "locked": true,
+    "category": "2. Standards and coverage",
+    "review_question": "Are standard conformance terms used clearly and consistently?",
+    "why_this_matters": "Staff need clear conformance terms to interpret whether a criterion Supports, Partially Supports, Does Not Support, is Not Applicable, or was Not Evaluated.",
+    "what_to_look_for": "Supports, Partially Supports, Does Not Support, Not Applicable, Not Evaluated, or equivalent VPAT conformance terms.",
+    "inventory_field": "Known Issues"
+  },
+  {
+    "id": "evaluation_methods_present",
+    "locked": true,
+    "category": "3. Evaluation and testing credibility",
+    "review_question": "Does the ACR contain an explicit evaluation method?",
+    "why_this_matters": "Evaluation methods help staff understand whether the ACR is based on manual testing, automated testing, keyboard testing, assistive technology testing, or third-party review.",
+    "what_to_look_for": "Testing methods, tools, browsers, operating systems, assistive technologies, keyboard testing, mobile testing, test date/period, or third-party auditor scope.",
+    "inventory_field": "Evaluation Methods"
+  },
+  {
+    "id": "keyboard_at_testing_present",
+    "locked": true,
+    "category": "3. Evaluation and testing credibility",
+    "review_question": "Were keyboard testing and assistive technology testing mentioned?",
+    "why_this_matters": "Automated-only testing is weak evidence for keyboard, screen reader, and real user interaction barriers.",
+    "what_to_look_for": "Keyboard-only testing, NVDA, JAWS, VoiceOver, TalkBack, screen magnification, switch access, browsers, operating systems, or mobile assistive technologies.",
+    "inventory_field": "Evaluation Methods"
+  },
+  {
+    "id": "sc_2_1_1_keyboard",
+    "locked": true,
+    "category": "4. Critical WCAG criteria scan",
+    "review_question": "What is the conformance result for WCAG 2.1 SC 2.1.1 Keyboard?",
+    "why_this_matters": "Keyboard access is a core blocker for users who cannot use a mouse and is part of the UC Irvine Libraries critical criteria scan.",
+    "what_to_look_for": "Locate 2.1.1 Keyboard in the WCAG A/AA table and record the conformance term and remarks.",
+    "inventory_field": "Known Issues"
+  },
+  {
+    "id": "sc_2_4_7_focus_visible",
+    "locked": true,
+    "category": "4. Critical WCAG criteria scan",
+    "review_question": "What is the conformance result for WCAG 2.1 SC 2.4.7 Focus Visible?",
+    "why_this_matters": "Visible focus helps keyboard users know where they are on the page and is part of the UC Irvine Libraries critical criteria scan.",
+    "what_to_look_for": "Locate 2.4.7 Focus Visible in the WCAG A/AA table and record the conformance term and remarks.",
+    "inventory_field": "Known Issues"
+  },
+  {
+    "id": "sc_1_3_1_info_relationships",
+    "locked": true,
+    "category": "4. Critical WCAG criteria scan",
+    "review_question": "What is the conformance result for WCAG 2.1 SC 1.3.1 Info and Relationships?",
+    "why_this_matters": "Screen reader users rely on correct structure, labels, headings, tables, and relationships. This criterion is part of the critical criteria scan.",
+    "what_to_look_for": "Locate 1.3.1 Info and Relationships in the WCAG A/AA table and record the conformance term and remarks.",
+    "inventory_field": "Known Issues"
+  },
+  {
+    "id": "sc_4_1_2_name_role_value",
+    "locked": true,
+    "category": "4. Critical WCAG criteria scan",
+    "review_question": "What is the conformance result for WCAG 2.1 SC 4.1.2 Name, Role, Value?",
+    "why_this_matters": "Name, Role, Value is central to assistive technology compatibility for controls, widgets, and dynamic interfaces.",
+    "what_to_look_for": "Locate 4.1.2 Name, Role, Value in the WCAG A/AA table and record the conformance term and remarks.",
+    "inventory_field": "Known Issues"
+  },
+  {
+    "id": "sc_3_3_1_error_identification",
+    "locked": true,
+    "category": "4. Critical WCAG criteria scan",
+    "review_question": "What is the conformance result for WCAG 2.1 SC 3.3.1 Error Identification?",
+    "why_this_matters": "Users need to know when a form error occurs. This matters for login, requests, booking, account management, and payment workflows.",
+    "what_to_look_for": "Locate 3.3.1 Error Identification in the WCAG A/AA table and record the conformance term and remarks.",
+    "inventory_field": "Known Issues"
+  },
+  {
+    "id": "sc_3_3_3_error_suggestion",
+    "locked": true,
+    "category": "4. Critical WCAG criteria scan",
+    "review_question": "What is the conformance result for WCAG 2.1 SC 3.3.3 Error Suggestion?",
+    "why_this_matters": "Users need clear suggestions for fixing errors. This matters for forms, request workflows, account management, booking, and payments.",
+    "what_to_look_for": "Locate 3.3.3 Error Suggestion in the WCAG A/AA table and record the conformance term and remarks.",
+    "inventory_field": "Known Issues"
+  },
+  {
+    "id": "remarks_specific",
+    "locked": true,
+    "category": "5. Issue clarity, impact, and remediation",
+    "review_question": "Are the remarks specific enough to understand the accessibility issues?",
+    "why_this_matters": "Vague or copied remarks make the ACR difficult to use for risk assessment and vendor follow-up.",
+    "what_to_look_for": "Affected pages, modules, components, examples, limitations, workflows, workaround, remediation status, or target release information.",
+    "inventory_field": "Notes / Follow-up"
+  },
+  {
+    "id": "common_library_workflow_impact",
+    "locked": true,
+    "category": "5. Issue clarity, impact, and remediation",
+    "review_question": "Do any known issues appear to affect common library workflows?",
+    "why_this_matters": "A single barrier in login, search, reading content, request submission, booking, account, payment, or help tools can be higher risk than several minor issues elsewhere.",
+    "what_to_look_for": "Look for remarks tied to login/account, discovery/search, reading/viewing/downloading content, requests/holds, reservations/bookings, payments/fees, forms, or help/chat tools.",
+    "inventory_field": "Known Issues"
+  },
+  {
+    "id": "remediation_plan_trackable",
+    "locked": true,
+    "category": "5. Issue clarity, impact, and remediation",
+    "review_question": "If remediation is mentioned, is it specific and trackable?",
+    "why_this_matters": "A remediation promise is only useful if it says what will be fixed and when, such as a specific date, target quarter/year, target month/year, or release version with timeline.",
+    "what_to_look_for": "ACR remarks, vendor roadmap, release notes, vendor email, target date, target quarter/year, target month/year, or target release version.",
+    "inventory_field": "Vendor Roadmap Provided"
+  },
+  {
+    "id": "vendor_follow_up_agenda",
+    "locked": true,
+    "category": "6. Staff follow-up",
+    "review_question": "What should library staff ask the vendor next?",
+    "why_this_matters": "The app should help non-experts take the next practical step, not just produce a technical finding.",
+    "what_to_look_for": "Missing ACR fields, unclear WCAG coverage, vague remarks, missing evaluation methods, common workflow impact, or missing remediation dates.",
+    "inventory_field": "Notes / Follow-up"
+  }
+]
