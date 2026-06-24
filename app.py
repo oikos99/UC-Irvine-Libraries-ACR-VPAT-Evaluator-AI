@@ -49,16 +49,70 @@ RESULT_COLUMNS = [
     "inventory_field",
 ]
 
-CRITICAL_SC_OPTIONS = [
-    "2.1.1 Keyboard",
-    "2.4.7 Focus Visible",
-    "1.3.1 Info and Relationships",
-    "4.1.2 Name, Role, Value",
-    "3.3.1 Error Identification",
-    "3.3.3 Error Suggestion",
+CRITICAL_SC_META = [
+    {
+        "sc": "2.1.1",
+        "name": "Keyboard",
+        "level": "A",
+        "why": "Keyboard access is a core blocker for users who cannot use a mouse and is part of the UC Irvine Libraries critical criteria scan.",
+        "look_for": "Locate 2.1.1 Keyboard in the selected WCAG table and record the conformance term and remarks.",
+    },
+    {
+        "sc": "2.4.7",
+        "name": "Focus Visible",
+        "level": "AA",
+        "why": "Visible focus helps keyboard users know where they are on the page and is part of the UC Irvine Libraries critical criteria scan.",
+        "look_for": "Locate 2.4.7 Focus Visible in the selected WCAG table and record the conformance term and remarks.",
+    },
+    {
+        "sc": "1.3.1",
+        "name": "Info and Relationships",
+        "level": "A",
+        "why": "Screen reader users rely on correct structure, labels, headings, tables, and relationships. This criterion is part of the critical criteria scan.",
+        "look_for": "Locate 1.3.1 Info and Relationships in the selected WCAG table and record the conformance term and remarks.",
+    },
+    {
+        "sc": "4.1.2",
+        "name": "Name, Role, Value",
+        "level": "A",
+        "why": "Name, Role, Value is central to assistive technology compatibility for controls, widgets, and dynamic interfaces.",
+        "look_for": "Locate 4.1.2 Name, Role, Value in the selected WCAG table and record the conformance term and remarks.",
+    },
+    {
+        "sc": "3.3.1",
+        "name": "Error Identification",
+        "level": "A",
+        "why": "Users need to know when a form error occurs. This matters for login, requests, booking, account management, and payment workflows.",
+        "look_for": "Locate 3.3.1 Error Identification in the selected WCAG table and record the conformance term and remarks.",
+    },
+    {
+        "sc": "3.3.3",
+        "name": "Error Suggestion",
+        "level": "AA",
+        "why": "Users need clear suggestions for fixing errors. This matters for forms, request workflows, account management, booking, and payments.",
+        "look_for": "Locate 3.3.3 Error Suggestion in the selected WCAG table and record the conformance term and remarks.",
+    },
 ]
 
+
+def critical_sc_label(item: Dict[str, str]) -> str:
+    return f"{item['sc']} {item['name']} ({item['level']})"
+
+
+CRITICAL_SC_OPTIONS = [critical_sc_label(item) for item in CRITICAL_SC_META]
 DEFAULT_CRITICAL_SC = CRITICAL_SC_OPTIONS.copy()
+
+DEFAULT_RISK_SETTINGS = {
+    "wcag_versions": ["WCAG 2.1"],
+    "wcag_levels": ["Level AA"],
+    "missing_version_or_date_is_stale": True,
+    "tier_1_stale_months": 12,
+    "tier_2_stale_months": 18,
+    "tier_3_stale_months": 24,
+    "medium_high_usage_core_issue_no_plan_risk": "High",
+    "low_usage_core_issue_no_plan_risk": "Medium",
+    "critical_criteria": DEFAULT_CRITICAL_SC.copy(),
+}
 
 PLACEHOLDER_VALUES = {
     "category": "Enter review area",
@@ -588,32 +642,324 @@ def criteria_signature(df: pd.DataFrame) -> str:
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 
-def current_profile_modified() -> bool:
-    return criteria_signature(st.session_state.criteria_df) != criteria_signature(load_default_criteria())
+def current_profile_modified(reference_df: Optional[pd.DataFrame] = None) -> bool:
+    if reference_df is None:
+        reference_df = load_default_criteria()
+    return criteria_signature(st.session_state.criteria_df) != criteria_signature(reference_df)
 
 
-def criteria_profile_bytes(df: pd.DataFrame) -> bytes:
+def wcag_level_rank(level: str) -> int:
+    normalized = str(level or "").lower().replace("level", "").strip()
+    if normalized == "aaa":
+        return 3
+    if normalized == "aa":
+        return 2
+    if normalized == "a":
+        return 1
+    return 0
+
+
+def included_wcag_levels(level: str) -> List[str]:
+    rank = wcag_level_rank(level)
+    if rank >= 3:
+        return ["A", "AA", "AAA"]
+    if rank == 2:
+        return ["A", "AA"]
+    return ["A"]
+
+
+def critical_sc_info(label_or_sc: str) -> Dict[str, str]:
+    sc = sc_id(label_or_sc)
+    for item in CRITICAL_SC_META:
+        if item["sc"] == sc:
+            return item
+    return {
+        "sc": sc,
+        "name": str(label_or_sc).split(" ", 1)[1] if " " in str(label_or_sc) else "",
+        "level": "",
+        "why": "This selected WCAG criterion is included in the current UC Irvine Libraries critical criteria scan.",
+        "look_for": f"Locate {sc} in the selected WCAG table and record the conformance term and remarks.",
+    }
+
+
+def available_critical_sc_options(required_level: str) -> List[str]:
+    included = set(included_wcag_levels(required_level))
+    return [critical_sc_label(item) for item in CRITICAL_SC_META if item["level"] in included]
+
+
+def wcag_versions_label(versions: List[str]) -> str:
+    versions = [str(v).strip() for v in versions if str(v).strip()]
+    if not versions:
+        return "selected WCAG version"
+    if len(versions) == 1:
+        return versions[0]
+    return ", ".join(versions[:-1]) + " or " + versions[-1]
+
+
+
+def _as_list(value: Any) -> List[str]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(x).strip() for x in value if str(x).strip()]
+    if isinstance(value, tuple) or isinstance(value, set):
+        return [str(x).strip() for x in value if str(x).strip()]
+    value = str(value).strip()
+    return [value] if value else []
+
+
+def _normalize_wcag_level(value: Any) -> str:
+    values = _as_list(value)
+    raw = values[0] if values else "Level AA"
+    lowered = raw.lower().replace("level", "").strip()
+    if lowered == "aaa":
+        return "Level AAA"
+    if lowered == "aa":
+        return "Level AA"
+    if lowered == "a":
+        return "Level A"
+    return "Level AA"
+
+
+def _normalize_critical_criteria(values: Any, required_level: str) -> List[str]:
+    available = available_critical_sc_options(required_level)
+
+    # None means the profile/settings did not specify this field, so use the
+    # UC Irvine preset defaults. An explicit empty list means the user cleared
+    # every selected SC, so keep it empty instead of re-selecting everything.
+    if values is None:
+        return available
+
+    raw_values = _as_list(values)
+    if not raw_values:
+        return []
+
+    available_by_sc = {sc_id(label): label for label in available}
+    selected: List[str] = []
+    for raw in raw_values:
+        raw_sc = sc_id(raw)
+        label = available_by_sc.get(raw_sc)
+        if label and label not in selected:
+            selected.append(label)
+    return selected
+
+
+def sanitize_risk_settings(settings: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Normalize risk settings so widgets, profile JSON, criteria rows, and backend Gates share one shape."""
+    merged = dict(DEFAULT_RISK_SETTINGS)
+    if settings:
+        merged.update(settings)
+
+    versions = [v for v in _as_list(merged.get("wcag_versions")) if v in {"WCAG 2.1", "WCAG 2.2"}]
+    if not versions:
+        versions = ["WCAG 2.1"]
+
+    level = _normalize_wcag_level(merged.get("wcag_levels") or merged.get("wcag_level_requirement"))
+    critical = _normalize_critical_criteria(merged.get("critical_criteria"), level)
+
+    def risk_value(value: Any, allowed: List[str], default: str) -> str:
+        value = str(value or default).strip()
+        return value if value in allowed else default
+
+    try:
+        tier_3_months = int(merged.get("tier_3_stale_months", 24))
+    except Exception:
+        tier_3_months = 24
+    tier_3_months = max(6, min(60, tier_3_months))
+
+    return {
+        "wcag_versions": versions,
+        "wcag_levels": [level],
+        "missing_version_or_date_is_stale": bool(merged.get("missing_version_or_date_is_stale", True)),
+        "tier_1_stale_months": 12,
+        "tier_2_stale_months": 18,
+        "tier_3_stale_months": tier_3_months,
+        "medium_high_usage_core_issue_no_plan_risk": risk_value(
+            merged.get("medium_high_usage_core_issue_no_plan_risk"), ["High", "Medium"], "High"
+        ),
+        "low_usage_core_issue_no_plan_risk": risk_value(
+            merged.get("low_usage_core_issue_no_plan_risk"), ["Medium", "High", "Low"], "Medium"
+        ),
+        "critical_criteria": critical,
+    }
+
+
+def infer_risk_settings_from_criteria(criteria_df: pd.DataFrame) -> Dict[str, Any]:
+    """Infer advanced Gate settings from a criteria-only profile for backward compatibility."""
+    settings = dict(DEFAULT_RISK_SETTINGS)
+    normalized = normalize_criteria_df(criteria_df)
+    all_text = "\n".join(
+        " ".join(str(row.get(col, "")) for col in ["id", "category", "review_question", "what_to_look_for"])
+        for _, row in normalized.iterrows()
+    )
+
+    versions = []
+    if "WCAG 2.1" in all_text:
+        versions.append("WCAG 2.1")
+    if "WCAG 2.2" in all_text:
+        versions.append("WCAG 2.2")
+    if versions:
+        settings["wcag_versions"] = versions
+
+    if re.search(r"Level\s+AAA\b", all_text, flags=re.IGNORECASE):
+        settings["wcag_levels"] = ["Level AAA"]
+    elif re.search(r"Level\s+AA\b", all_text, flags=re.IGNORECASE):
+        settings["wcag_levels"] = ["Level AA"]
+    elif re.search(r"Level\s+A\b", all_text, flags=re.IGNORECASE):
+        settings["wcag_levels"] = ["Level A"]
+
+    selected = []
+    available_by_sc = {item["sc"]: critical_sc_label(item) for item in CRITICAL_SC_META}
+    for _, row in normalized.iterrows():
+        row_text = " ".join(str(row.get(col, "")) for col in ["id", "category", "review_question", "what_to_look_for"])
+        if "Critical WCAG criteria scan" not in row_text and not str(row.get("id", "")).startswith("sc_"):
+            continue
+        for sc in re.findall(r"\b\d+\.\d+\.\d+\b", row_text):
+            label = available_by_sc.get(sc)
+            if label and label not in selected:
+                selected.append(label)
+    if selected:
+        settings["critical_criteria"] = selected
+        highest_rank = max(wcag_level_rank(critical_sc_info(label).get("level", "A")) for label in selected)
+        if highest_rank >= wcag_level_rank(settings["wcag_levels"][0]):
+            if highest_rank == 3:
+                settings["wcag_levels"] = ["Level AAA"]
+            elif highest_rank == 2:
+                settings["wcag_levels"] = ["Level AA"]
+            else:
+                settings["wcag_levels"] = ["Level A"]
+
+    return sanitize_risk_settings(settings)
+
+
+def apply_risk_settings_to_widget_state(settings: Dict[str, Any]) -> None:
+    """Set advanced Gate widget values before those widgets are rendered."""
+    settings = sanitize_risk_settings(settings)
+    level = settings["wcag_levels"][0]
+    st.session_state["wcag_versions_selector"] = settings["wcag_versions"]
+    st.session_state["wcag_level_requirement_selector"] = level
+    st.session_state["missing_version_or_date_is_stale_widget"] = settings["missing_version_or_date_is_stale"]
+    st.session_state["tier_3_stale_months_input"] = settings["tier_3_stale_months"]
+    st.session_state["medium_high_usage_core_issue_no_plan_risk_selector"] = settings["medium_high_usage_core_issue_no_plan_risk"]
+    st.session_state["low_usage_core_issue_no_plan_risk_selector"] = settings["low_usage_core_issue_no_plan_risk"]
+    st.session_state["critical_criteria_selector"] = _normalize_critical_criteria(settings["critical_criteria"], level)
+
+
+def reset_to_preset_profile() -> None:
+    preset_settings = sanitize_risk_settings(DEFAULT_RISK_SETTINGS)
+    st.session_state.criteria_df = build_dynamic_preset_criteria(preset_settings)
+    st.session_state.pending_risk_settings = preset_settings
+    st.session_state.criteria_editor_version += 1
+
+def build_dynamic_preset_criteria(risk_settings: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
+    """Build the locked preset criteria from the current advanced Gate settings.
+
+    The advanced settings are not just cosmetic: the WCAG coverage row and the
+    critical SC rows are regenerated from these settings before the AI prompt is
+    built and before the rule-based risk gates run. Custom user-added rows are
+    preserved separately.
+    """
+    risk_settings = sanitize_risk_settings(risk_settings or DEFAULT_RISK_SETTINGS)
+    versions = risk_settings.get("wcag_versions", ["WCAG 2.1"]) or ["WCAG 2.1"]
+    levels_raw = risk_settings.get("wcag_levels", ["Level AA"]) or ["Level AA"]
+    if isinstance(levels_raw, str):
+        levels_raw = [levels_raw]
+    required_level = str(levels_raw[0] if levels_raw else "Level AA")
+    versions_text = wcag_versions_label(versions)
+    included_text = " and ".join(included_wcag_levels(required_level))
+
+    selected_critical = risk_settings.get("critical_criteria", DEFAULT_CRITICAL_SC) or []
+    selected_sc_ids = [sc_id(x) for x in selected_critical]
+    dynamic_sc_rows = []
+    for selected in selected_critical:
+        info = critical_sc_info(selected)
+        sc = info["sc"]
+        name = info["name"]
+        level = info.get("level", "")
+        dynamic_sc_rows.append(
+            {
+                "id": "sc_" + sc.replace(".", "_") + "_" + re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_"),
+                "locked": True,
+                "category": "4. Critical WCAG criteria scan",
+                "review_question": f"What is the conformance result for {versions_text} SC {sc} {name}{f' ({level})' if level else ''}?",
+                "why_this_matters": info.get("why", "This selected WCAG criterion is included in the current UC Irvine Libraries critical criteria scan."),
+                "what_to_look_for": info.get("look_for", f"Locate {sc} {name} in the selected WCAG table and record the conformance term and remarks."),
+                "inventory_field": "Known Issues",
+            }
+        )
+
+    base_records = load_default_criteria().to_dict(orient="records")
+    result_records = []
+    inserted_sc_rows = False
+    for rec in base_records:
+        rec = dict(rec)
+        rec_id = str(rec.get("id", ""))
+        if rec_id.startswith("sc_"):
+            continue
+        if rec_id == "wcag_a_aa_coverage":
+            rec["review_question"] = f"Does the ACR explicitly cover {versions_text} {required_level}?"
+            rec["why_this_matters"] = (
+                "This Gate checks whether the ACR clearly covers the WCAG version and "
+                "conformance level selected in the advanced UC Irvine risk criteria."
+            )
+            rec["what_to_look_for"] = (
+                f"Standards/guidelines section, table headings, or ACR metadata showing {versions_text} {required_level}. "
+                f"For {required_level}, the review expects coverage of Level {included_text} success criteria because WCAG conformance levels are cumulative."
+            )
+        if rec_id == "remarks_specific" and not inserted_sc_rows:
+            result_records.extend(dynamic_sc_rows)
+            inserted_sc_rows = True
+        result_records.append(rec)
+    if not inserted_sc_rows:
+        result_records.extend(dynamic_sc_rows)
+    return normalize_criteria_df(pd.DataFrame(result_records))
+
+
+def apply_dynamic_gate_criteria(risk_settings: Dict[str, Any]) -> None:
+    """Replace locked preset rows from current Gate settings while preserving custom rows."""
+    current = normalize_criteria_df(st.session_state.criteria_df)
+    custom_records = current[~current["locked"]][CRITERIA_COLUMNS].to_dict(orient="records")
+    locked_records = build_dynamic_preset_criteria(risk_settings)[CRITERIA_COLUMNS].to_dict(orient="records")
+    updated = normalize_criteria_df(pd.DataFrame(locked_records + custom_records))
+    if criteria_signature(updated) != criteria_signature(current):
+        st.session_state.criteria_df = updated
+        st.session_state.criteria_editor_version += 1
+
+
+def criteria_profile_bytes(df: pd.DataFrame, risk_settings: Optional[Dict[str, Any]] = None) -> bytes:
     normalized = normalize_criteria_df(df)
+    clean_settings = sanitize_risk_settings(risk_settings or infer_risk_settings_from_criteria(normalized))
     payload = {
         "profile_name": "Evaluation criteria profile",
         "app": APP_TITLE,
         "saved_at": datetime.now().isoformat(timespec="seconds"),
+        "risk_settings": clean_settings,
         "criteria": normalized.to_dict(orient="records"),
     }
     return json.dumps(payload, indent=2, ensure_ascii=False).encode("utf-8")
 
 
-def load_profile_from_json(uploaded_file) -> pd.DataFrame:
+def load_profile_from_json(uploaded_file) -> Tuple[pd.DataFrame, Dict[str, Any]]:
     if isinstance(uploaded_file, (bytes, bytearray)):
         raw = bytes(uploaded_file)
     else:
         raw = uploaded_file.getvalue()
     data = json.loads(raw.decode("utf-8"))
-    if isinstance(data, dict) and "criteria" in data:
-        data = data["criteria"]
+    explicit_settings: Optional[Dict[str, Any]] = None
+    if isinstance(data, dict):
+        explicit_settings = data.get("risk_settings") or data.get("gate_settings")
+        data = data.get("criteria")
     if not isinstance(data, list):
         raise ValueError("Evaluation profile JSON must contain a list of criteria or a 'criteria' array.")
-    return normalize_criteria_df(pd.DataFrame(data))
+    df = normalize_criteria_df(pd.DataFrame(data))
+    inferred_settings = infer_risk_settings_from_criteria(df)
+    if explicit_settings:
+        merged = dict(inferred_settings)
+        merged.update(explicit_settings)
+        settings = sanitize_risk_settings(merged)
+    else:
+        settings = inferred_settings
+    return df, settings
 
 
 def initialize_state() -> None:
@@ -635,6 +981,19 @@ def initialize_state() -> None:
         st.session_state.criteria_editor_version = 0
     if "profile_upload_version" not in st.session_state:
         st.session_state.profile_upload_version = 0
+    if "pending_risk_settings" not in st.session_state:
+        st.session_state.pending_risk_settings = None
+
+
+def apply_pending_risk_settings() -> None:
+    pending = st.session_state.get("pending_risk_settings")
+    if pending:
+        apply_risk_settings_to_widget_state(pending)
+        st.session_state.pending_risk_settings = None
+    else:
+        # Initialize the advanced Gate widgets once so saved/loaded profiles can round-trip cleanly.
+        if "wcag_versions_selector" not in st.session_state:
+            apply_risk_settings_to_widget_state(DEFAULT_RISK_SETTINGS)
 
 
 def extract_pdf_text(uploaded_file) -> Tuple[str, List[Dict[str, Any]]]:
@@ -704,6 +1063,17 @@ UC Irvine defined risk-level criteria settings:
 
 Evaluation criteria:
 {json.dumps(criteria, indent=2)}
+
+Instructions for evaluation criteria:
+- Return one criteria_results item for EVERY Evaluation criteria item above, in the same order, including any custom rows added by staff.
+- Use the exact category as review_area and the exact criterion question as review_item.
+- Use the criterion's inventory_field exactly as provided.
+- For custom rows, evaluate them the same way as preset rows using the uploaded ACR text.
+
+Instructions for the critical_scan array:
+- Return one critical_scan item for EACH selected SC in risk_settings.critical_criteria.
+- Do not scan unselected SCs for the core issue Gate.
+- Use the selected WCAG version/level context when looking for these criteria.
 
 Extracted PDF text:
 {pdf_text}
@@ -1017,6 +1387,39 @@ def questions_to_text(questions: List[str]) -> str:
     return "\n".join(f"- {q}" for q in questions)
 
 
+def build_follow_up_questions(payload: Dict[str, Any], rows_df: pd.DataFrame) -> List[str]:
+    """Combine AI-generated follow-up questions with row-level recommended actions.
+
+    This keeps custom criteria connected to the follow-up agenda: if a custom
+    row produces a Concern/Fail/Not Found/Needs Human Review result, its
+    recommended_action can appear in Vendor follow-up questions.
+    """
+    questions: List[str] = []
+
+    def add_item(text: str) -> None:
+        text = re.sub(r"\s+", " ", str(text or "")).strip(" -•\t")
+        if not text:
+            return
+        if text.lower() in {q.lower() for q in questions}:
+            return
+        questions.append(text)
+
+    for q in payload.get("vendor_follow_up_questions", []) or []:
+        add_item(q)
+
+    if rows_df is not None and not rows_df.empty:
+        concern_terms = {"concern", "fail", "not found", "needs human review"}
+        for _, row in rows_df.iterrows():
+            result = str(row.get("result", "")).strip().lower()
+            if result not in concern_terms:
+                continue
+            action = str(row.get("recommended_action", "")).strip()
+            if action:
+                add_item(action)
+
+    return questions
+
+
 def useful_result_rows(rows_df: pd.DataFrame, field: str) -> pd.DataFrame:
     if rows_df is None or rows_df.empty or "inventory_field" not in rows_df.columns:
         return pd.DataFrame()
@@ -1133,6 +1536,7 @@ def sanitize_filename(name: str, default: str = "acr_review") -> str:
 
 
 initialize_state()
+apply_pending_risk_settings()
 
 
 @st.dialog("Replace current evaluation profile?")
@@ -1143,8 +1547,7 @@ def confirm_preset_dialog() -> None:
     c1, c2 = st.columns(2)
     with c1:
         if st.button("Replace with preset", type="primary"):
-            st.session_state.criteria_df = load_default_criteria()
-            st.session_state.criteria_editor_version += 1
+            reset_to_preset_profile()
             st.session_state.show_preset_confirm = False
             st.rerun()
     with c2:
@@ -1199,7 +1602,7 @@ with st.expander("UC Irvine defined risk-level criteria (advanced)", expanded=Fa
         """
         These settings control the overall High / Medium / Low risk recommendation after the AI extracts evidence. In this app, the overall recommendation is based on **Gates**: each Gate checks one documentation or risk condition before the final risk level is assigned.
 
-        UC Irvine Libraries currently follows **WCAG 2.1 Level AA** for this review workflow. WCAG conformance levels are cumulative: Level AA includes Level A requirements, and Level AAA includes Level A and Level AA requirements.
+        UC Irvine Libraries currently follows **WCAG 2.1 Level AA** for this review workflow. WCAG conformance levels are cumulative: Level AA includes Level A requirements, and Level AAA includes Level A and Level AA requirements. Changing the WCAG coverage or critical criteria below updates both the **Evaluation Criteria** table and the backend rule logic used during processing.
 
         - **Gate: ACR usable** — Missing company name, product name, product version/build, or report date means the ACR documentation is not usable for this protocol and the overall risk is High.
         - **Gate: WCAG coverage** — The selected WCAG version and level must be clearly present. If not, the overall risk is High.
@@ -1214,40 +1617,59 @@ with st.expander("UC Irvine defined risk-level criteria (advanced)", expanded=Fa
         wcag_versions = st.multiselect(
             "Accepted WCAG versions",
             ["WCAG 2.1", "WCAG 2.2"],
-            default=["WCAG 2.1"],
+            key="wcag_versions_selector",
         )
     with w2:
         wcag_level_requirement = st.selectbox(
             "Required WCAG conformance level",
             ["Level A", "Level AA", "Level AAA"],
-            index=1,
+            key="wcag_level_requirement_selector",
             help="WCAG conformance levels are cumulative: Level AA includes Level A success criteria, and Level AAA includes Level A and Level AA success criteria.",
         )
         wcag_levels = [wcag_level_requirement]
 
     a1, a2, a3 = st.columns(3)
     with a1:
-        missing_version_or_date_is_stale = st.checkbox("Missing version/date counts as stale", value=True)
+        missing_version_or_date_is_stale = st.checkbox(
+            "Missing version/date counts as stale",
+            key="missing_version_or_date_is_stale_widget",
+        )
     with a2:
-        tier_3_stale_months = st.number_input("Tier 3 stale threshold in months", min_value=6, max_value=60, value=24, step=1)
+        tier_3_stale_months = st.number_input(
+            "Tier 3 stale threshold in months",
+            min_value=6,
+            max_value=60,
+            step=1,
+            key="tier_3_stale_months_input",
+        )
     with a3:
         medium_high_usage_core_issue_no_plan_risk = st.selectbox(
             "Risk when High/Medium usage has core issue and no dated plan",
             ["High", "Medium"],
-            index=0,
+            key="medium_high_usage_core_issue_no_plan_risk_selector",
         )
         low_usage_core_issue_no_plan_risk = st.selectbox(
             "Risk when Low usage has core issue and no dated plan",
             ["Medium", "High", "Low"],
-            index=0,
+            key="low_usage_core_issue_no_plan_risk_selector",
         )
+    available_critical_criteria = available_critical_sc_options(wcag_level_requirement)
+    previous_critical = st.session_state.get("critical_criteria_selector")
+    if previous_critical is None:
+        previous_critical = available_critical_criteria
+    else:
+        previous_critical = [x for x in previous_critical if x in available_critical_criteria]
+    st.session_state["critical_criteria_selector"] = previous_critical
     critical_criteria = st.multiselect(
         "Critical criteria used for core issue detection",
-        CRITICAL_SC_OPTIONS,
-        default=DEFAULT_CRITICAL_SC,
+        available_critical_criteria,
+        key="critical_criteria_selector",
+        help="These selected SCs drive both the visible Critical WCAG criteria scan rows and the backend Core issue Gate. If no SCs are selected, the Core issue Gate will not scan any critical SCs.",
     )
+    if not critical_criteria:
+        st.caption("No critical SCs selected. The Critical WCAG criteria scan rows are removed, and the Core issue Gate will not mark any ACR issue as a core issue.")
 
-risk_settings = {
+risk_settings = sanitize_risk_settings({
     "wcag_versions": wcag_versions,
     "wcag_levels": wcag_levels,
     "missing_version_or_date_is_stale": missing_version_or_date_is_stale,
@@ -1257,7 +1679,11 @@ risk_settings = {
     "medium_high_usage_core_issue_no_plan_risk": medium_high_usage_core_issue_no_plan_risk,
     "low_usage_core_issue_no_plan_risk": low_usage_core_issue_no_plan_risk,
     "critical_criteria": critical_criteria,
-}
+})
+
+# Keep the staff-facing criteria table tied to the advanced Gate settings.
+# The table the staff sees is the same criteria list sent to AI.
+apply_dynamic_gate_criteria(risk_settings)
 
 st.subheader("Evaluation Criteria")
 st.caption("Preset rows are locked. Add new criteria by editing the blank bottom row.")
@@ -1433,11 +1859,11 @@ st.divider()
 profile_col1, profile_col2, profile_col3, process_col = st.columns(4)
 with profile_col1:
     if st.button("Load preset evaluation profile", use_container_width=True, key="load_preset_profile_btn"):
-        if current_profile_modified():
+        preset_df = build_dynamic_preset_criteria(DEFAULT_RISK_SETTINGS)
+        if current_profile_modified(preset_df):
             st.session_state.show_preset_confirm = True
         else:
-            st.session_state.criteria_df = load_default_criteria()
-            st.session_state.criteria_editor_version += 1
+            reset_to_preset_profile()
             st.rerun()
 with profile_col2:
     with st.container(key="profile_upload_button"):
@@ -1454,7 +1880,9 @@ with profile_col2:
         profile_bytes = profile_file.getvalue()
         profile_hash = hashlib.sha256(profile_bytes).hexdigest()
         try:
-            st.session_state.criteria_df = load_profile_from_json(profile_bytes)
+            loaded_df, loaded_settings = load_profile_from_json(profile_bytes)
+            st.session_state.criteria_df = loaded_df
+            st.session_state.pending_risk_settings = loaded_settings
             st.session_state.criteria_editor_version += 1
             st.session_state.loaded_profile_hash = profile_hash
             # Reset the uploader widget after a successful load so selecting a profile
@@ -1467,7 +1895,7 @@ with profile_col2:
 with profile_col3:
     st.download_button(
         "Save evaluation profile JSON",
-        criteria_profile_bytes(st.session_state.criteria_df),
+        criteria_profile_bytes(st.session_state.criteria_df, risk_settings),
         file_name="evaluation_criteria_profile.json",
         mime="application/json",
         use_container_width=True,
@@ -1521,6 +1949,7 @@ if run_review:
             payload = call_openai_review(openai_api_key, model, prompt)
             rows_df = normalize_rows(payload)
             rule_summary = compute_rule_summary(payload, context, risk_settings)
+            rule_summary["vendor_follow_up_questions"] = build_follow_up_questions(payload, rows_df)
 
             st.session_state.review_payload = payload
             st.session_state.review_rows = rows_df
